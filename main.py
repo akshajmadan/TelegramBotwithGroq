@@ -15,6 +15,7 @@ client = Groq(
 )
 telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
 
+conversation_history = {}
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -25,7 +26,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-
+ 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
   
     user = update.effective_user
@@ -41,18 +42,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
     text_message = update.message.text
+    if user_id not in conversation_history:
+        conversation_history[user_id] = []
+    conversation_history[user_id].append({"role": "user", "content": text_message})
     chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": text_message,
-            }
-        ],
-        
-        model="openai/gpt-oss-120b",
-    )
-    await update.message.reply_text(chat_completion.choices[0].message.content)
+    messages=conversation_history[user_id],
+    model="openai/gpt-oss-120b",
+)
+    reply = chat_completion.choices[0].message.content
+    conversation_history[user_id].append({"role": "assistant", "content": reply})
+    await update.message.reply_text(reply)
 
 def main() -> None:
     
@@ -70,4 +71,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()  
